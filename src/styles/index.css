@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  *:focus-visible {
+    outline: 2px solid #5b8def;
+    outline-offset: 2px;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #343948;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #454b5c;
+  }
+}
+
+@layer components {
+  .panel-section {
+    @apply border-b border-panel-border;
+  }
+  .panel-section-header {
+    @apply flex items-center justify-between px-3 py-2 text-2xs uppercase tracking-wider text-text-muted font-semibold cursor-pointer select-none hover:bg-panel-light;
+  }
+  .panel-section-body {
+    @apply px-3 pb-3;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none;
+  }
+  .btn-primary {
+    @apply btn bg-accent hover:bg-accent-hover text-white px-3 py-1.5;
+  }
+  .btn-secondary {
+    @apply btn bg-panel-lighter hover:bg-panel-border text-text px-3 py-1.5;
+  }
+  .btn-ghost {
+    @apply btn hover:bg-panel-light text-text px-2 py-1;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 hover:bg-red-500 text-white px-3 py-1.5;
+  }
+  .input {
+    @apply w-full bg-surface border border-panel-border rounded-md px-2.5 py-1.5 text-sm text-text placeholder-text-dim focus:border-accent focus:outline-none;
+  }
+  .label {
+    @apply block text-xs text-text-muted mb-1 font-medium;
+  }
+  .field {
+    @apply mb-3;
+  }
+  .divider {
+    @apply border-t border-panel-border my-3;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs bg-panel-lighter text-text-muted;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
