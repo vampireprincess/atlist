@@ -5,6 +5,7 @@ import { CanvasOverlay } from './CanvasOverlay';
 import { renderMarkerDom } from './markerRenderer';
 import { getMarkerTemplate } from '@/lib/lookup';
 import { PopupPreview } from './PopupPreview';
+import { runtime } from '@/export/runtimeV2';
 
 const DEVICE_WIDTH: Record<string, number | null> = {
   desktop: null,
@@ -64,6 +65,11 @@ export function MapCanvas() {
           clickableIcons: false,
         });
         mapRef.current = map;
+
+        // Initialize runtime (used by both Test Mode and Export)
+        if (project) {
+          runtime.init(map, project);
+        }
 
         // Click on map handles "add location" mode
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
@@ -159,7 +165,10 @@ export function MapCanvas() {
         marker.addListener('click', () => {
           const st = useProjectStore.getState();
           st.select('location', loc.id);
-          if (st.testMode) {
+          
+          if (st.testMode && runtime) {
+            runtime.emit('click', { id: loc.id });
+          } else if (st.testMode) {
             setPreviewingPopupFor(loc.id);
           }
         });
@@ -169,6 +178,12 @@ export function MapCanvas() {
           const latLng = pos instanceof google.maps.LatLng ? pos.toJSON() : (pos as google.maps.LatLngLiteral);
           updateLocation(loc.id, { position: { lat: latLng.lat, lng: latLng.lng } });
         });
+
+        // Attach runtime events (for Test Mode + Export)
+        if (runtime) {
+          runtime.registerMarker(loc.id, marker);
+          runtime.attachMarkerEvents(marker, loc.id);
+        }
       } else {
         marker.position = loc.position;
         marker.content = domEl;

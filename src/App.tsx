@@ -4,6 +4,7 @@ import { EditorLayout } from './ui/layout/EditorLayout';
 import { ApiSetupDialog } from './ui/dialogs/ApiSetupDialog';
 import { ProjectPicker } from './ui/dialogs/ProjectPicker';
 import { ErrorToast } from './ui/common/ErrorToast';
+import { initStorage } from './lib/storage';
 
 export default function App() {
   const bootstrap = useProjectStore((s) => s.bootstrap);
@@ -11,7 +12,10 @@ export default function App() {
   const project = useProjectStore((s) => s.project);
 
   useEffect(() => {
-    bootstrap();
+    // Initialize IndexedDB storage first
+    initStorage().then(() => {
+      bootstrap();
+    });
   }, [bootstrap]);
 
   // Global keyboard shortcuts for undo/redo/save/escape
