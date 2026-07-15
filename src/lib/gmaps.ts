@@ -69,3 +69,8 @@ export async function loadCoreLib(): Promise<google.maps.CoreLibrary> {
   await loadGoogle();
   return google.maps.importLibrary('core') as Promise<google.maps.CoreLibrary>;
 }
+
+export async function loadDirectionsLib(): Promise<any> {
+  await loadGoogle();
+  return google.maps.importLibrary('routes');
+}

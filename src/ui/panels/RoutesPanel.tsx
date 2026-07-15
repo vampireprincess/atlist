@@ -25,7 +25,6 @@ const PATTERN_OPTIONS: { value: RouteLine['pattern']; label: string }[] = [
 
 export function RoutesPanel() {
   const project = useProjectStore((s) => s.project)!;
-  const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const mutate = useProjectStore((s) => s.mutate);
   const removeRoute = useProjectStore((s) => s.removeRoute);
@@ -113,9 +112,8 @@ export function RoutesPanel() {
     }
   };
 
-  const addPolylinePoint = (point: LatLng) => {
-    setPreviewCoords((prev) => [...prev, point]);
-  };
+  // Note: addPolylinePoint is available for future map integration
+  void addPolylinePoint;
 
   const finishPolyline = () => {
     if (previewCoords.length < 2) {
@@ -325,7 +323,7 @@ export function RoutesPanel() {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }

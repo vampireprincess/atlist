@@ -56,7 +56,6 @@ const CONDITION_KINDS: { value: InteractionCondition['kind']; label: string; nee
 
 export function InteractionsPanel() {
   const project = useProjectStore((s) => s.project)!;
-  const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const mutate = useProjectStore((s) => s.mutate);
 
@@ -378,7 +377,7 @@ export function InteractionsPanel() {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }

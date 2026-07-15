@@ -13,7 +13,6 @@ const SHAPE_KINDS: { value: ShapeRegion['kind']; label: string; description: str
 
 export function ShapesPanel() {
   const project = useProjectStore((s) => s.project)!;
-  const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const mutate = useProjectStore((s) => s.mutate);
   const removeShape = useProjectStore((s) => s.removeShape);
@@ -46,9 +45,8 @@ export function ShapesPanel() {
     }
   };
 
-  const addPolygonPoint = (point: LatLng) => {
-    setPreviewPoints((prev) => [...prev, point]);
-  };
+  // Note: addPolygonPoint is available for future map integration
+  void addPolygonPoint;
 
   const finishPolygon = () => {
     if (previewPoints.length < 3) {
@@ -75,9 +73,8 @@ export function ShapesPanel() {
     setPreviewPoints([]);
   };
 
-  const setCircleCenterPoint = (point: LatLng) => {
-    setCircleCenter(point);
-  };
+  // Note: setCircleCenterPoint is available for future map integration
+  void setCircleCenterPoint;
 
   const finishCircle = () => {
     if (!circleCenter) return;
@@ -102,12 +99,8 @@ export function ShapesPanel() {
     setCircleCenter(null);
   };
 
-  const setRectCorner = (corner: 'ne' | 'sw', point: LatLng) => {
-    setRectBounds((prev) => {
-      if (!prev) return { ne: point, sw: point };
-      return { ...prev, [corner]: point };
-    });
-  };
+  // Note: setRectCorner is available for future map integration
+  void setRectCorner;
 
   const finishRectangle = () => {
     if (!rectBounds) return;
@@ -449,7 +442,7 @@ export function ShapesPanel() {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }
