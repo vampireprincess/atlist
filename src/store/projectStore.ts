@@ -18,12 +18,12 @@ import type {
   ShapeRegion,
 } from '@/types';
 import {
-  createHistory,
-  pushHistory,
-  redo as historyRedo,
-  undo as historyUndo,
-  type HistoryState,
-} from './history';
+  createHistoryV2,
+  pushCommand,
+  undoV2,
+  redoV2,
+  type HistoryStateV2,
+} from './historyV2';
 import {
   clearApiConfig,
   clearCurrentProjectId,
@@ -71,7 +71,7 @@ interface State {
   projectIndex: ProjectIndexEntry[];
   assets: Asset[];
   apiConfig: ApiConfig | null;
-  history: HistoryState;
+  history: HistoryStateV2;
   selection: Selection;
   activePanel: PanelKey;
   deviceMode: DeviceMode;
@@ -170,7 +170,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   projectIndex: [],
   assets: [],
   apiConfig: null,
-  history: createHistory(),
+  history: createHistoryV2(),
   selection: { kind: null, id: null },
   activePanel: 'projects',
   deviceMode: 'desktop',
@@ -311,30 +311,31 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   mutate(label, mutator) {
     const { project, history } = get();
     if (!project) return;
-    const before = snapshot(project);
-    const next = snapshot(project);
+    
+    const before = JSON.parse(JSON.stringify(project)); // only for patch comparison
+    const next = JSON.parse(JSON.stringify(project));
     mutator(next);
     next.updatedAt = Date.now();
-    const nextHistory = pushHistory(history, { label, project: before, at: Date.now() });
-    set({ project: next, history: nextHistory, dirty: true });
+
+    const newHistory = pushCommand(history, label, before, next);
+    
+    set({ project: next, history: newHistory, dirty: true });
   },
 
   undo() {
     const { project, history } = get();
     if (!project) return;
-    const current = { label: 'current', project: snapshot(project), at: Date.now() };
-    const { state, entry } = historyUndo(history, current);
-    if (!entry) return;
-    set({ project: entry.project, history: state, dirty: true });
+    const { state, project: prevProject } = undoV2(history, project);
+    if (!prevProject) return;
+    set({ project: prevProject, history: state, dirty: true });
   },
 
   redo() {
     const { project, history } = get();
     if (!project) return;
-    const current = { label: 'current', project: snapshot(project), at: Date.now() };
-    const { state, entry } = historyRedo(history, current);
-    if (!entry) return;
-    set({ project: entry.project, history: state, dirty: true });
+    const { state, project: nextProject } = redoV2(history, project);
+    if (!nextProject) return;
+    set({ project: nextProject, history: state, dirty: true });
   },
 
   select(kind, id) {
