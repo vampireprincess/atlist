@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useProjectStore } from '@/store/projectStore';
+import { useDrawingStore } from '@/store/drawingStore';
 import { initLoader, loadMapsLib, loadMarkerLib } from '@/lib/gmaps';
 import { CanvasOverlay } from './CanvasOverlay';
 import { renderMarkerDom } from './markerRenderer';
