@@ -1,13 +1,31 @@
-// LocalStorage-backed persistence for projects, assets, and API config.
-// Kept intentionally simple; can be replaced with IndexedDB later.
+// Storage abstraction layer
+// Primary: IndexedDB (projects, assets, large data)
+// Fallback / small data: LocalStorage (API config, preferences, current project)
 
 import type { ApiConfig, Asset, Project } from '@/types';
+import * as idb from './storage/indexedDB';
 
 const PROJECT_INDEX_KEY = 'atlist.projects.index.v1';
 const PROJECT_PREFIX = 'atlist.project.v1.';
-const ASSET_PREFIX = 'atlist.assets.v1.'; // per-project asset store
+const ASSET_PREFIX = 'atlist.assets.v1.';
 const API_KEY = 'atlist.api.v1';
 const CURRENT_PROJECT_KEY = 'atlist.currentProject.v1';
+
+// Check if IndexedDB should be used
+let useIndexedDB = true; // Will be set during bootstrap
+
+export async function initStorage(): Promise<void> {
+  const available = await idb.isIndexedDBAvailable();
+  useIndexedDB = available;
+  
+  if (available) {
+    // Try to migrate from LocalStorage
+    const result = await idb.migrateFromLocalStorage();
+    if (result.errors.length > 0) {
+      console.warn('[Storage] Migration had errors:', result.errors);
+    }
+  }
+}
 
 export interface ProjectIndexEntry {
   id: string;
@@ -48,7 +66,23 @@ export function clearApiConfig(): void {
 }
 
 /** ---------- Projects ---------- */
-export function loadProjectIndex(): ProjectIndexEntry[] {
+export async function loadProjectIndex(): Promise<ProjectIndexEntry[]> {
+  if (useIndexedDB) {
+    try {
+      const projects = await idb.getAllProjects();
+      return projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        thumbnail: p.thumbnail,
+        tags: p.tags || [],
+        updatedAt: p.updatedAt,
+        createdAt: p.createdAt,
+      }));
+    } catch {
+      return readJson<ProjectIndexEntry[]>(PROJECT_INDEX_KEY, []);
+    }
+  }
   return readJson<ProjectIndexEntry[]>(PROJECT_INDEX_KEY, []);
 }
 
@@ -56,22 +90,46 @@ function writeProjectIndex(index: ProjectIndexEntry[]): void {
   writeJson(PROJECT_INDEX_KEY, index);
 }
 
-export function saveProject(project: Project): void {
+export async function saveProject(project: Project): Promise<void> {
+  if (useIndexedDB) {
+    try {
+      await idb.saveProjectToIDB(project);
+      const index = await idb.loadProjectIndexFromIDB();
+      const entry: ProjectIndexEntry = {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        thumbnail: project.thumbnail,
+        tags: project.tags || [],
+        updatedAt: project.updatedAt,
+        createdAt: project.createdAt,
+      };
+      const existing = index.findIndex((p) => p.id === project.id);
+      if (existing >= 0) index[existing] = entry;
+      else index.push(entry);
+      await idb.saveProjectIndex(index);
+      return;
+    } catch (e) {
+      console.warn('[Storage] IndexedDB save failed, falling back to LocalStorage', e);
+    }
+  }
+  
+  // Fallback
   writeJson(PROJECT_PREFIX + project.id, project);
-  const index = loadProjectIndex();
+  const index = readJson<ProjectIndexEntry[]>(PROJECT_INDEX_KEY, []);
   const entry: ProjectIndexEntry = {
     id: project.id,
     name: project.name,
     description: project.description,
     thumbnail: project.thumbnail,
-    tags: project.tags,
+    tags: project.tags || [],
     updatedAt: project.updatedAt,
     createdAt: project.createdAt,
   };
   const existing = index.findIndex((p) => p.id === project.id);
   if (existing >= 0) index[existing] = entry;
   else index.push(entry);
-  writeProjectIndex(index);
+  writeJson(PROJECT_INDEX_KEY, index);
 }
 
 export function loadProject(id: string): Project | null {
