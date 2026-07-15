@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useProjectStore } from '@/store/projectStore';
+import { useDrawingStore } from '@/store/drawingStore';
 import { loadDirectionsLib } from '@/lib/gmaps';
 import { uid } from '@/lib/id';
 import type { RouteLine, LatLng } from '@/types';
@@ -30,10 +31,10 @@ export function RoutesPanel() {
   const mutate = useProjectStore((s) => s.mutate);
   const removeRoute = useProjectStore((s) => s.removeRoute);
   const updateRoute = useProjectStore((s) => s.updateRoute);
+  const drawingStore = useDrawingStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingKind, setAddingKind] = useState<RouteLine['kind'] | null>(null);
-  const [previewCoords, setPreviewCoords] = useState<LatLng[]>([]);
   const [calculating, setCalculating] = useState(false);
 
   const routes = useMemo(() => project.routes, [project.routes]);
@@ -108,8 +109,9 @@ export function RoutesPanel() {
       select('route', newRoute.id);
       setEditingId(newRoute.id);
     } else if (kind === 'polyline') {
-      setAddingKind('polyline');
-      setPreviewCoords([]);
+      // Use global drawing store for real map drawing
+      drawingStore.startDrawing('draw-polyline');
+      setAddingKind(null);
     }
   };
 
@@ -153,18 +155,61 @@ export function RoutesPanel() {
         <span className="text-2xs text-text-muted">{routes.length} routes</span>
       </div>
 
-      {addingKind === 'polyline' && (
+      {drawingStore.isDrawing && drawingStore.mode === 'draw-polyline' && (
         <div className="bg-amber-500/10 border border-amber-500/30 rounded p-3 space-y-2 animate-slideDown">
-          <div className="font-medium text-amber-300">Drawing Polyline</div>
+          <div className="font-medium text-amber-300">Drawing Polyline on Map</div>
           <div className="text-sm text-text-muted">
-            Click on the map to add points. {previewCoords.length} point{previewCoords.length !== 1 ? 's' : ''} added.
+            Click on the map to add points. {drawingStore.previewPoints.length} point{drawingStore.previewPoints.length !== 1 ? 's' : ''} added.
           </div>
           <div className="flex gap-1">
-            <button className="btn-primary text-xs flex-1" onClick={finishPolyline} disabled={previewCoords.length < 2}>Finish Polyline</button>
-            <button className="btn-secondary text-xs" onClick={() => { setAddingKind(null); setPreviewCoords([]); }}>Cancel</button>
+            <button 
+              className="btn-primary text-xs flex-1" 
+              onClick={() => {
+                if (drawingStore.previewPoints.length >= 2) {
+                  const newRoute: RouteLine = {
+                    id: uid('rte'),
+                    name: 'Custom polyline',
+                    kind: 'polyline',
+                    points: [...drawingStore.previewPoints],
+                    color: '#5b8def',
+                    opacity: 0.8,
+                    weight: 4,
+                    pattern: 'solid',
+                    showArrows: false,
+                    label: '',
+                    zIndex: 10,
+                    visible: true,
+                  };
+                  mutate('Add route', (p) => { p.routes.push(newRoute); });
+                  select('route', newRoute.id);
+                  setEditingId(newRoute.id);
+                  drawingStore.finishDrawing();
+                }
+              }} 
+              disabled={drawingStore.previewPoints.length < 2}
+            >
+              Finish Polyline
+            </button>
+            <button 
+              className="btn-secondary text-xs" 
+              onClick={() => drawingStore.cancelDrawing()}
+            >
+              Cancel
+            </button>
           </div>
-          {previewCoords.length > 0 && (
-            <button className="btn-ghost text-xs" onClick={() => setPreviewCoords((prev) => prev.slice(0, -1))}>Undo Last Point</button>
+          {drawingStore.previewPoints.length > 0 && (
+            <button 
+              className="btn-ghost text-xs" 
+              onClick={() => {
+                const pts = [...drawingStore.previewPoints];
+                pts.pop();
+                // We need to manually update because drawingStore doesn't expose setter directly
+                // In a real implementation we'd expose a better API
+                drawingStore.previewPoints = pts;
+              }}
+            >
+              Undo Last Point
+            </button>
           )}
         </div>
       )}

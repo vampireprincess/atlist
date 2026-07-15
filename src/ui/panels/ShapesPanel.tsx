@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { useProjectStore } from '@/store/projectStore';
+import { useDrawingStore } from '@/store/drawingStore';
 import { uid } from '@/lib/id';
 import type { ShapeRegion, LatLng } from '@/types';
 
@@ -18,6 +19,7 @@ export function ShapesPanel() {
   const mutate = useProjectStore((s) => s.mutate);
   const removeShape = useProjectStore((s) => s.removeShape);
   const updateShape = useProjectStore((s) => s.updateShape);
+  const drawingStore = useDrawingStore();
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingKind, setAddingKind] = useState<ShapeRegion['kind'] | null>(null);
@@ -31,15 +33,11 @@ export function ShapesPanel() {
 
   const addShape = (kind: ShapeRegion['kind']) => {
     if (kind === 'polygon') {
-      setAddingKind('polygon');
-      setPreviewPoints([]);
+      drawingStore.startDrawing('draw-polygon');
     } else if (kind === 'circle') {
-      setAddingKind('circle');
-      setCircleCenter(null);
-      setCircleRadius(1000);
+      drawingStore.startDrawing('draw-circle');
     } else if (kind === 'rectangle') {
-      setAddingKind('rectangle');
-      setRectBounds(null);
+      drawingStore.startDrawing('draw-rectangle');
     } else if (kind === 'geojson') {
       setAddingKind('geojson');
       setGeojsonInput('');
