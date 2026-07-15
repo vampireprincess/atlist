@@ -69,7 +69,6 @@ const EASING_OPTIONS = [
 
 export function AnimationsPanel() {
   const project = useProjectStore((s) => s.project)!;
-  const selection = useProjectStore((s) => s.selection);
   const select = useProjectStore((s) => s.select);
   const mutate = useProjectStore((s) => s.mutate);
   const removeAnimation = useProjectStore((s) => {
