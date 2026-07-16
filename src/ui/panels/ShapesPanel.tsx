@@ -43,8 +43,9 @@ export function ShapesPanel() {
     }
   };
 
-  // Note: addPolygonPoint is available for future map integration
-  void addPolygonPoint;
+  const addPolygonPoint = (point: LatLng) => {
+    drawingStore.addPreviewPoint(point);
+  };
 
   const finishPolygon = () => {
     if (previewPoints.length < 3) {

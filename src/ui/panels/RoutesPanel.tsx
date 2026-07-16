@@ -114,8 +114,9 @@ export function RoutesPanel() {
     }
   };
 
-  // Note: addPolylinePoint is available for future map integration
-  void addPolylinePoint;
+  const addPolylinePoint = (point: LatLng) => {
+    drawingStore.addPreviewPoint(point);
+  };
 
   const finishPolyline = () => {
     if (previewCoords.length < 2) {
