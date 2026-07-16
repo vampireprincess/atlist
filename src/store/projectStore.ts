@@ -18,12 +18,12 @@ import type {
   ShapeRegion,
 } from '@/types';
 import {
-  createHistory,
-  pushHistory,
-  redo as historyRedo,
-  undo as historyUndo,
-  type HistoryState,
-} from './history';
+  createHistoryV2 as createHistory,
+  pushCommand as pushHistory,
+  redoV2 as historyRedo,
+  undoV2 as historyUndo,
+  type HistoryStateV2 as HistoryState,
+} from './historyV2';
 import {
   clearApiConfig,
   clearCurrentProjectId,
@@ -170,7 +170,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   projectIndex: [],
   assets: [],
   apiConfig: null,
-  history: createHistory(),
+  history: createHistoryV2(),
   selection: { kind: null, id: null },
   activePanel: 'projects',
   deviceMode: 'desktop',
@@ -183,8 +183,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
   bootstrap() {
     const apiConfig = loadApiConfig();
-    const projectIndex = loadProjectIndex().sort((a, b) => b.updatedAt - a.updatedAt);
+    
+    let projectIndex: any[] = [];
+    try {
+      const result = loadProjectIndex();
+      // Handle both sync array and potential async (IndexedDB)
+      const index = result instanceof Promise ? [] : (result || []);
+      projectIndex = Array.isArray(index) ? [...index] : [];
+      projectIndex.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    } catch (e) {
+      console.warn('[bootstrap] Failed to load project index:', e);
+      projectIndex = [];
+    }
+
     set({ apiConfig, projectIndex });
+
     const currentId = loadCurrentProjectId();
     if (currentId) {
       const project = loadProject(currentId);
@@ -194,7 +207,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({
           project,
           assets,
-          history: createHistory(),
+          history: createHistoryV2(),
           selection: { kind: null, id: null },
           activePanel: 'locations',
         });
@@ -208,7 +221,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   refreshIndex() {
-    set({ projectIndex: loadProjectIndex().sort((a, b) => b.updatedAt - a.updatedAt) });
+    try {
+      const result = loadProjectIndex();
+      const index = result instanceof Promise ? [] : (result || []);
+      const sorted = Array.isArray(index) 
+        ? [...index].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+        : [];
+      set({ projectIndex: sorted });
+    } catch (e) {
+      console.warn('[refreshIndex] Failed:', e);
+      set({ projectIndex: [] });
+    }
   },
 
   setApiConfig(cfg) {
@@ -222,20 +245,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   newProject(name = 'Untitled project') {
-    const project = createEmptyProject(name);
-    saveProject(project);
-    saveCurrentProjectId(project.id);
-    set({
-      project,
-      assets: [],
-      history: createHistory(),
-      selection: { kind: null, id: null },
-      activePanel: 'locations',
-      lastSavedAt: Date.now(),
-      dirty: false,
-    });
-    get().refreshIndex();
-    return project;
+    try {
+      const project = createEmptyProject(name);
+      saveProject(project);
+      saveCurrentProjectId(project.id);
+
+      set({
+        project,
+        assets: [],
+        history: createHistory(),
+        selection: { kind: null, id: null },
+        activePanel: 'locations',
+        lastSavedAt: Date.now(),
+        dirty: false,
+      });
+
+      // Refresh the project list from storage (works with both LocalStorage and IndexedDB)
+      get().refreshIndex();
+
+      return project;
+    } catch (e) {
+      console.error('[newProject] Failed to create project:', e);
+      setError('Failed to create new project');
+      return null as any;
+    }
   },
 
   openProject(id) {
