@@ -18,11 +18,11 @@ import type {
   ShapeRegion,
 } from '@/types';
 import {
-  createHistoryV2 as createHistory,
-  pushCommand as pushHistory,
-  redoV2 as historyRedo,
-  undoV2 as historyUndo,
-  type HistoryStateV2 as HistoryState,
+  createHistoryV2,
+  pushCommand,
+  redoV2,
+  undoV2,
+  type HistoryStateV2,
 } from './historyV2';
 import {
   clearApiConfig,
