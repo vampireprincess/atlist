@@ -181,10 +181,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loading: false,
   errorMessage: null,
 
-  bootstrap() {
+  async bootstrap() {
     const apiConfig = loadApiConfig();
-    const projectIndex = loadProjectIndex().sort((a, b) => b.updatedAt - a.updatedAt);
+    
+    let projectIndex: any[] = [];
+    try {
+      // loadProjectIndex may return Promise (IndexedDB) or array (LocalStorage)
+      const result = loadProjectIndex();
+      const index = result instanceof Promise ? await result : result;
+      projectIndex = (index || []).sort((a, b) => b.updatedAt - a.updatedAt);
+    } catch {
+      projectIndex = [];
+    }
+
     set({ apiConfig, projectIndex });
+
     const currentId = loadCurrentProjectId();
     if (currentId) {
       const project = loadProject(currentId);
