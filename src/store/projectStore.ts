@@ -221,7 +221,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   refreshIndex() {
-    set({ projectIndex: loadProjectIndex().sort((a, b) => b.updatedAt - a.updatedAt) });
+    try {
+      const result = loadProjectIndex();
+      const index = result instanceof Promise ? [] : (result || []);
+      const sorted = Array.isArray(index) 
+        ? [...index].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+        : [];
+      set({ projectIndex: sorted });
+    } catch (e) {
+      console.warn('[refreshIndex] Failed:', e);
+      set({ projectIndex: [] });
+    }
   },
 
   setApiConfig(cfg) {
@@ -235,20 +245,30 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   newProject(name = 'Untitled project') {
-    const project = createEmptyProject(name);
-    saveProject(project);
-    saveCurrentProjectId(project.id);
-    set({
-      project,
-      assets: [],
-      history: createHistory(),
-      selection: { kind: null, id: null },
-      activePanel: 'locations',
-      lastSavedAt: Date.now(),
-      dirty: false,
-    });
-    get().refreshIndex();
-    return project;
+    try {
+      const project = createEmptyProject(name);
+      saveProject(project);
+      saveCurrentProjectId(project.id);
+
+      set({
+        project,
+        assets: [],
+        history: createHistory(),
+        selection: { kind: null, id: null },
+        activePanel: 'locations',
+        lastSavedAt: Date.now(),
+        dirty: false,
+      });
+
+      // Refresh the project list from storage (works with both LocalStorage and IndexedDB)
+      get().refreshIndex();
+
+      return project;
+    } catch (e) {
+      console.error('[newProject] Failed to create project:', e);
+      setError('Failed to create new project');
+      return null as any;
+    }
   },
 
   openProject(id) {
