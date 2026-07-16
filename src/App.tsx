@@ -54,15 +54,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
-  if (!apiConfig) {
-    return (
-      <>
-        <ApiSetupDialog />
-        <ErrorToast />
-      </>
-    );
-  }
-
+  // Show Project Picker first — user can explore the app without an API key
   if (!project) {
     return (
       <>
@@ -72,9 +64,12 @@ export default function App() {
     );
   }
 
+  // Only show API Setup when user has opened a project and tries to use map features
+  // (we'll trigger it from within the editor when needed)
   return (
     <>
       <EditorLayout />
+      {!apiConfig && <ApiSetupDialog />}
       <ErrorToast />
     </>
   );

@@ -94,8 +94,18 @@ export function ApiSetupDialog() {
         </div>
 
         <div className="flex justify-end gap-2">
+          <button 
+            type="button" 
+            onClick={() => {
+              // Allow user to continue without API key (they can add it later)
+              window.location.reload();
+            }}
+            className="btn-ghost"
+          >
+            Skip for now
+          </button>
           <button type="submit" disabled={!canSave} className="btn-primary">
-            Continue
+            Save &amp; Continue
           </button>
         </div>
       </form>
