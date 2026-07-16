@@ -24,6 +24,7 @@ interface DrawingActions {
   setMode: (mode: DrawingMode) => void;
   startDrawing: (mode: DrawingMode, id?: string) => void;
   addPreviewPoint: (point: { lat: number; lng: number }) => void;
+  removeLastPreviewPoint: () => void;
   clearPreview: () => void;
   finishDrawing: () => void;
   cancelDrawing: () => void;

@@ -17,6 +17,9 @@ export function MapCanvas() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
+  const routeOverlaysRef = useRef<google.maps.Polyline[]>([]);
+  const shapeOverlaysRef = useRef<Array<google.maps.Polygon | google.maps.Circle | google.maps.Rectangle>>([]);
+  const previewOverlayRef = useRef<google.maps.Polyline | google.maps.Polygon | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [previewingPopupFor, setPreviewingPopupFor] = useState<string | null>(null);
@@ -31,6 +34,8 @@ export function MapCanvas() {
   const deviceMode = useProjectStore((s) => s.deviceMode);
   const testMode = useProjectStore((s) => s.testMode);
   const setError = useProjectStore((s) => s.setError);
+  const drawingMode = useDrawingStore((s) => s.mode);
+  const drawingPoints = useDrawingStore((s) => s.previewPoints);
 
   // Initialize the map exactly once per API key.
   useEffect(() => {
@@ -68,10 +73,18 @@ export function MapCanvas() {
 
         // Click on map handles "add location" mode
         map.addListener('click', (e: google.maps.MapMouseEvent) => {
+          if (!e.latLng) return;
+          const point = e.latLng.toJSON();
+          const drawing = useDrawingStore.getState();
+          if (drawing.isDrawing) {
+            // Route and polygon tools collect vertices directly from map clicks.
+            // Circle/rectangle tools retain their clicks too, ready for their editors.
+            drawing.addPreviewPoint(point);
+            return;
+          }
           const state = useProjectStore.getState();
-          if (state.addLocationMode && e.latLng) {
-            const loc = addLocationAt(e.latLng.toJSON());
-            void loc;
+          if (state.addLocationMode) {
+            addLocationAt(point);
             setAddLocationMode(false);
           } else {
             state.clearSelection();
@@ -181,12 +194,43 @@ export function MapCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.locations, project?.markerTemplates, selection, loaded, testMode, updateLocation]);
 
-  // Change cursor when in "add location" mode
+  // Keep routes, shapes and the currently drawn path visible in the editor.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !project || !loaded) return;
+    routeOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    shapeOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    routeOverlaysRef.current = project.routes.filter((route) => route.visible).map((route) => new google.maps.Polyline({
+      map, path: route.points, strokeColor: route.color, strokeOpacity: route.opacity,
+      strokeWeight: route.weight, zIndex: route.zIndex, clickable: true,
+    }));
+    shapeOverlaysRef.current = project.shapes.filter((shape) => shape.visible && shape.kind !== 'geojson').flatMap((shape) => {
+      const common = { map, fillColor: shape.fillColor, fillOpacity: shape.fillOpacity, strokeColor: shape.strokeColor,
+        strokeOpacity: shape.strokeOpacity, strokeWeight: shape.strokeWeight, zIndex: shape.zIndex };
+      if (shape.kind === 'polygon' && shape.paths) return [new google.maps.Polygon({ ...common, paths: shape.paths })];
+      if (shape.kind === 'circle' && shape.center) return [new google.maps.Circle({ ...common, center: shape.center, radius: shape.radius ?? 1000 })];
+      if (shape.kind === 'rectangle' && shape.bounds) return [new google.maps.Rectangle({ ...common, bounds: shape.bounds })];
+      return [];
+    });
+  }, [project?.routes, project?.shapes, loaded]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    previewOverlayRef.current?.setMap(null);
+    previewOverlayRef.current = null;
+    if (!map || drawingPoints.length === 0) return;
+    const polygon = drawingMode === 'draw-polygon';
+    previewOverlayRef.current = polygon
+      ? new google.maps.Polygon({ map, paths: drawingPoints, fillColor: '#5b8def', fillOpacity: .2, strokeColor: '#5b8def', strokeWeight: 3 })
+      : new google.maps.Polyline({ map, path: drawingPoints, strokeColor: '#5b8def', strokeWeight: 3 });
+  }, [drawingMode, drawingPoints]);
+
+  // Change cursor when in an add/drawing mode
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setOptions({ draggableCursor: addLocationMode ? 'crosshair' : undefined });
-  }, [addLocationMode]);
+    map.setOptions({ draggableCursor: addLocationMode || drawingMode !== 'none' ? 'crosshair' : undefined });
+  }, [addLocationMode, drawingMode]);
 
   const width = DEVICE_WIDTH[deviceMode];
 
