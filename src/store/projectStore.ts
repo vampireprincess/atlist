@@ -253,7 +253,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({
         project,
         assets: [],
-        history: createHistory(),
+        history: createHistoryV2(),
         selection: { kind: null, id: null },
         activePanel: 'locations',
         lastSavedAt: Date.now(),
@@ -283,7 +283,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({
       project,
       assets,
-      history: createHistory(),
+      history: createHistoryV2(),
       selection: { kind: null, id: null },
       activePanel: 'locations',
       lastSavedAt: Date.now(),
@@ -296,7 +296,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({
       project: null,
       assets: [],
-      history: createHistory(),
+      history: createHistoryV2(),
       selection: { kind: null, id: null },
       activePanel: 'projects',
     });
