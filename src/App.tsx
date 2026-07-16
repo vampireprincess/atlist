@@ -54,8 +54,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
-  // Always show Project Picker first on fresh start or when no project is open.
-  // This allows users to explore the app without being forced to enter an API key immediately.
+  // Show Project Picker first — user can explore the app without an API key
   if (!project) {
     return (
       <>
@@ -65,8 +64,8 @@ export default function App() {
     );
   }
 
-  // Only show the API setup dialog as an overlay once a project is open
-  // (the dialog itself has a "Skip for now" button)
+  // Only show API Setup when user has opened a project and tries to use map features
+  // (we'll trigger it from within the editor when needed)
   return (
     <>
       <EditorLayout />
