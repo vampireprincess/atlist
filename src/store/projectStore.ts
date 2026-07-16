@@ -181,16 +181,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loading: false,
   errorMessage: null,
 
-  async bootstrap() {
+  bootstrap() {
     const apiConfig = loadApiConfig();
     
     let projectIndex: any[] = [];
     try {
-      // loadProjectIndex may return Promise (IndexedDB) or array (LocalStorage)
       const result = loadProjectIndex();
-      const index = result instanceof Promise ? await result : result;
-      projectIndex = (index || []).sort((a, b) => b.updatedAt - a.updatedAt);
-    } catch {
+      // Handle both sync array and potential async (IndexedDB)
+      const index = result instanceof Promise ? [] : (result || []);
+      projectIndex = Array.isArray(index) ? [...index] : [];
+      projectIndex.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    } catch (e) {
+      console.warn('[bootstrap] Failed to load project index:', e);
       projectIndex = [];
     }
 
