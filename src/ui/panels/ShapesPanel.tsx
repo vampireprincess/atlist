@@ -22,7 +22,6 @@ export function ShapesPanel() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingKind, setAddingKind] = useState<ShapeRegion['kind'] | null>(null);
-  const [previewPoints, setPreviewPoints] = useState<LatLng[]>([]);
   const [circleCenter, setCircleCenter] = useState<LatLng | null>(null);
   const [circleRadius, setCircleRadius] = useState(1000);
   const [rectBounds, setRectBounds] = useState<{ ne: LatLng; sw: LatLng } | null>(null);
@@ -32,10 +31,13 @@ export function ShapesPanel() {
 
   const addShape = (kind: ShapeRegion['kind']) => {
     if (kind === 'polygon') {
+      setAddingKind('polygon');
       drawingStore.startDrawing('draw-polygon');
     } else if (kind === 'circle') {
+      setAddingKind('circle');
       drawingStore.startDrawing('draw-circle');
     } else if (kind === 'rectangle') {
+      setAddingKind('rectangle');
       drawingStore.startDrawing('draw-rectangle');
     } else if (kind === 'geojson') {
       setAddingKind('geojson');
@@ -43,11 +45,8 @@ export function ShapesPanel() {
     }
   };
 
-  // Note: addPolygonPoint is available for future map integration
-  void addPolygonPoint;
-
   const finishPolygon = () => {
-    if (previewPoints.length < 3) {
+    if (drawingStore.previewPoints.length < 3) {
       alert('Need at least 3 points for a polygon.');
       return;
     }
@@ -55,7 +54,7 @@ export function ShapesPanel() {
       id: uid('shp'),
       name: 'Polygon',
       kind: 'polygon',
-      paths: previewPoints,
+      paths: drawingStore.previewPoints,
       fillColor: '#5b8def',
       fillOpacity: 0.3,
       strokeColor: '#5b8def',
@@ -68,7 +67,7 @@ export function ShapesPanel() {
     select('shape', newShape.id);
     setEditingId(newShape.id);
     setAddingKind(null);
-    setPreviewPoints([]);
+    drawingStore.finishDrawing();
   };
 
   // Note: setCircleCenterPoint is available for future map integration
@@ -96,9 +95,6 @@ export function ShapesPanel() {
     setAddingKind(null);
     setCircleCenter(null);
   };
-
-  // Note: setRectCorner is available for future map integration
-  void setRectCorner;
 
   const finishRectangle = () => {
     if (!rectBounds) return;
@@ -165,13 +161,13 @@ export function ShapesPanel() {
       {addingKind === 'polygon' && (
         <div className="bg-blue-500/10 border border-blue-500/30 rounded p-3 space-y-2 animate-slideDown">
           <div className="font-medium text-blue-300">Drawing Polygon</div>
-          <div className="text-sm text-text-muted">Click map to add vertices. {previewPoints.length} point{previewPoints.length !== 1 ? 's' : ''} added.</div>
+          <div className="text-sm text-text-muted">Click map to add vertices. {drawingStore.previewPoints.length} point{drawingStore.previewPoints.length !== 1 ? 's' : ''} added.</div>
           <div className="flex gap-1">
-            <button className="btn-primary text-xs flex-1" onClick={finishPolygon} disabled={previewPoints.length < 3}>Finish Polygon</button>
-            <button className="btn-secondary text-xs" onClick={() => { setAddingKind(null); setPreviewPoints([]); }}>Cancel</button>
+            <button className="btn-primary text-xs flex-1" onClick={finishPolygon} disabled={drawingStore.previewPoints.length < 3}>Finish Polygon</button>
+            <button className="btn-secondary text-xs" onClick={() => { setAddingKind(null); drawingStore.finishDrawing(); }}>Cancel</button>
           </div>
-          {previewPoints.length > 0 && (
-            <button className="btn-ghost text-xs" onClick={() => setPreviewPoints((prev) => prev.slice(0, -1))}>Undo Last Point</button>
+          {drawingStore.previewPoints.length > 0 && (
+            <button className="btn-ghost text-xs" onClick={() => drawingStore.removeLastPreviewPoint()}>Undo Last Point</button>
           )}
         </div>
       )}

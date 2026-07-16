@@ -114,34 +114,6 @@ export function RoutesPanel() {
     }
   };
 
-  // Note: addPolylinePoint is available for future map integration
-  void addPolylinePoint;
-
-  const finishPolyline = () => {
-    if (previewCoords.length < 2) {
-      alert('Need at least 2 points for a polyline.');
-      return;
-    }
-    const newRoute: RouteLine = {
-      id: uid('rte'),
-      name: 'Custom polyline',
-      kind: 'polyline',
-      points: previewCoords,
-      color: '#5b8def',
-      opacity: 0.8,
-      weight: 4,
-      pattern: 'solid',
-      showArrows: false,
-      label: '',
-      zIndex: 10,
-      visible: true,
-    };
-    mutate('Add route', (p) => { p.routes.push(newRoute); });
-    select('route', newRoute.id);
-    setEditingId(newRoute.id);
-    setAddingKind(null);
-    setPreviewCoords([]);
-  };
 
   const getRoute = (id: string) => routes.find((r) => r.id === id);
   const route = editingId ? getRoute(editingId) : null;
@@ -198,13 +170,7 @@ export function RoutesPanel() {
           {drawingStore.previewPoints.length > 0 && (
             <button 
               className="btn-ghost text-xs" 
-              onClick={() => {
-                const pts = [...drawingStore.previewPoints];
-                pts.pop();
-                // We need to manually update because drawingStore doesn't expose setter directly
-                // In a real implementation we'd expose a better API
-                drawingStore.previewPoints = pts;
-              }}
+              onClick={drawingStore.removeLastPreviewPoint}
             >
               Undo Last Point
             </button>
