@@ -65,7 +65,6 @@ export default function App() {
   }
 
   // Only show API Setup when user has opened a project and tries to use map features
-  // (we'll trigger it from within the editor when needed)
   return (
     <>
       <EditorLayout />
