@@ -71,7 +71,7 @@ interface State {
   projectIndex: ProjectIndexEntry[];
   assets: Asset[];
   apiConfig: ApiConfig | null;
-  history: HistoryState;
+  history: HistoryStateV2;
   selection: Selection;
   activePanel: PanelKey;
   deviceMode: DeviceMode;
@@ -153,7 +153,6 @@ interface Actions {
 export type ProjectStore = State & Actions;
 
 function snapshot(project: Project): Project {
-  // Structured clone keeps things simple; project data is JSON-safe.
   return JSON.parse(JSON.stringify(project));
 }
 
@@ -187,7 +186,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     let projectIndex: any[] = [];
     try {
       const result = loadProjectIndex();
-      // Handle both sync array and potential async (IndexedDB)
       const index = result instanceof Promise ? [] : (result || []);
       projectIndex = Array.isArray(index) ? [...index] : [];
       projectIndex.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -260,9 +258,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         dirty: false,
       });
 
-      // Refresh the project list from storage (works with both LocalStorage and IndexedDB)
       get().refreshIndex();
-
       return project;
     } catch (e) {
       console.error('[newProject] Failed to create project:', e);
@@ -307,7 +303,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!source) return;
     const copy: Project = { ...snapshot(source), id: uid('prj'), name: source.name + ' copy', createdAt: Date.now(), updatedAt: Date.now() };
     saveProject(copy);
-    // Duplicate assets as well
     const sourceAssets = loadAssets(id);
     saveAssets(copy.id, sourceAssets);
     get().refreshIndex();
@@ -348,7 +343,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const next = snapshot(project);
     mutator(next);
     next.updatedAt = Date.now();
-    const nextHistory = pushHistory(history, { label, project: before, at: Date.now() });
+    const nextHistory = pushCommand(history, { label, project: before, at: Date.now() } as any);
     set({ project: next, history: nextHistory, dirty: true });
   },
 
@@ -356,18 +351,17 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { project, history } = get();
     if (!project) return;
     const current = { label: 'current', project: snapshot(project), at: Date.now() };
-    const { state, entry } = historyUndo(history, current);
-    if (!entry) return;
-    set({ project: entry.project, history: state, dirty: true });
+    const { state, project: prevProject } = undoV2(history, project);
+    if (!prevProject) return;
+    set({ project: prevProject, history: state, dirty: true });
   },
 
   redo() {
     const { project, history } = get();
     if (!project) return;
-    const current = { label: 'current', project: snapshot(project), at: Date.now() };
-    const { state, entry } = historyRedo(history, current);
-    if (!entry) return;
-    set({ project: entry.project, history: state, dirty: true });
+    const { state, project: nextProject } = redoV2(history, project);
+    if (!nextProject) return;
+    set({ project: nextProject, history: state, dirty: true });
   },
 
   select(kind, id) {
@@ -484,11 +478,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   addMarkerTemplate(name) {
-    const t: MarkerTemplate = { ...(get().project!.markerTemplates[0] ?? {} as any) } as MarkerTemplate;
-    // Copy from default marker template
     const src = get().project!.markerTemplates[0];
     const copy: MarkerTemplate = { ...JSON.parse(JSON.stringify(src)), id: uid('mkr'), name: name ?? 'New marker' };
-    void t;
     get().mutate('Add marker template', (p) => {
       p.markerTemplates.push(copy);
     });
