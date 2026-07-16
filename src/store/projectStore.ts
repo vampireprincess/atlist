@@ -20,8 +20,8 @@ import type {
 import {
   createHistoryV2,
   pushCommand,
-  undoV2,
   redoV2,
+  undoV2,
   type HistoryStateV2,
 } from './historyV2';
 import {
@@ -153,7 +153,6 @@ interface Actions {
 export type ProjectStore = State & Actions;
 
 function snapshot(project: Project): Project {
-  // Structured clone keeps things simple; project data is JSON-safe.
   return JSON.parse(JSON.stringify(project));
 }
 
@@ -187,7 +186,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     let projectIndex: any[] = [];
     try {
       const result = loadProjectIndex();
-      // Handle both sync array and potential async (IndexedDB)
       const index = result instanceof Promise ? [] : (result || []);
       projectIndex = Array.isArray(index) ? [...index] : [];
       projectIndex.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -207,7 +205,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({
           project,
           assets,
-          history: createHistory(),
+          history: createHistoryV2(),
           selection: { kind: null, id: null },
           activePanel: 'locations',
         });
@@ -253,16 +251,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       set({
         project,
         assets: [],
-        history: createHistory(),
+        history: createHistoryV2(),
         selection: { kind: null, id: null },
         activePanel: 'locations',
         lastSavedAt: Date.now(),
         dirty: false,
       });
 
-      // Refresh the project list from storage (works with both LocalStorage and IndexedDB)
       get().refreshIndex();
-
       return project;
     } catch (e) {
       console.error('[newProject] Failed to create project:', e);
@@ -283,7 +279,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({
       project,
       assets,
-      history: createHistory(),
+      history: createHistoryV2(),
       selection: { kind: null, id: null },
       activePanel: 'locations',
       lastSavedAt: Date.now(),
@@ -296,7 +292,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({
       project: null,
       assets: [],
-      history: createHistory(),
+      history: createHistoryV2(),
       selection: { kind: null, id: null },
       activePanel: 'projects',
     });
@@ -307,7 +303,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!source) return;
     const copy: Project = { ...snapshot(source), id: uid('prj'), name: source.name + ' copy', createdAt: Date.now(), updatedAt: Date.now() };
     saveProject(copy);
-    // Duplicate assets as well
     const sourceAssets = loadAssets(id);
     saveAssets(copy.id, sourceAssets);
     get().refreshIndex();
@@ -344,20 +339,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   mutate(label, mutator) {
     const { project, history } = get();
     if (!project) return;
-    
-    const before = JSON.parse(JSON.stringify(project)); // only for patch comparison
-    const next = JSON.parse(JSON.stringify(project));
+    const before = snapshot(project);
+    const next = snapshot(project);
     mutator(next);
     next.updatedAt = Date.now();
-
-    const newHistory = pushCommand(history, label, before, next);
-    
-    set({ project: next, history: newHistory, dirty: true });
+    const nextHistory = pushCommand(history, { label, project: before, at: Date.now() } as any);
+    set({ project: next, history: nextHistory, dirty: true });
   },
 
   undo() {
     const { project, history } = get();
     if (!project) return;
+    const current = { label: 'current', project: snapshot(project), at: Date.now() };
     const { state, project: prevProject } = undoV2(history, project);
     if (!prevProject) return;
     set({ project: prevProject, history: state, dirty: true });
@@ -485,11 +478,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   addMarkerTemplate(name) {
-    const t: MarkerTemplate = { ...(get().project!.markerTemplates[0] ?? {} as any) } as MarkerTemplate;
-    // Copy from default marker template
     const src = get().project!.markerTemplates[0];
     const copy: MarkerTemplate = { ...JSON.parse(JSON.stringify(src)), id: uid('mkr'), name: name ?? 'New marker' };
-    void t;
     get().mutate('Add marker template', (p) => {
       p.markerTemplates.push(copy);
     });
